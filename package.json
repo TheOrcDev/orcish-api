@@ -5,7 +5,9 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "seed": "tsx src/db/seed.ts"
+    "seed": "tsx src/db/seed.ts",
+    "prepare": "husky",
+    "lint": "npx ultracite check"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -14,9 +16,12 @@
     "hono": "^4.10.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.7",
     "@types/node": "^20.11.17",
     "drizzle-kit": "^0.31.7",
+    "husky": "^9.1.7",
     "tsx": "^4.7.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "ultracite": "6.3.6"
   }
 }
