@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { db } from './db/drizzle.js'
+import db from './db/drizzle.js'
 import { items, type InsertItem } from './db/schema.js'
 
 const itemsApp = new Hono()
