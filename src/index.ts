@@ -4,8 +4,10 @@ import usersApp from "./users.js";
 
 const app = new Hono();
 
+app.get("/", (c) => c.redirect("https://docs.orcish-api.com"));
+
 // Root route
-app.get("/", (c) =>
+app.get("/api", (c) =>
   c.json({
     message: "Orcish API",
     endpoints: {
