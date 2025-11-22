@@ -1,92 +1,104 @@
+import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-
-export type User = {
-    id: number
-    name: string
-    email: string
-}
-
-// In-memory data store
-let users: User[] = [
-    { id: 1, name: 'Grukthar the Mighty', email: 'grukthar@orcclan.com' },
-    { id: 2, name: 'Zog Bloodaxe', email: 'zog.bloodaxe@darkforge.net' },
-    { id: 3, name: 'Thrak Ironjaw', email: 'thrak@ironjaw.war' },
-    { id: 4, name: 'Morgok Skullcrusher', email: 'morgok@skullcrusher.clan' },
-    { id: 5, name: 'Gorak the Destroyer', email: 'gorak@destruction.org' },
-    { id: 6, name: 'Urgok Bonebreaker', email: 'urgok@bonebreaker.tribe' },
-    { id: 7, name: 'Draknar Firefist', email: 'draknar@firefist.stronghold' },
-    { id: 8, name: 'Kragnak Shadowblade', email: 'kragnak@shadowblade.net' }
-]
-
-let nextUserId = 9
+import { db } from './db/drizzle.js'
+import { users, type InsertUser } from './db/schema.js'
 
 const usersApp = new Hono()
 
 // GET all users
-usersApp.get('/', (c) => {
-    return c.json(users)
+usersApp.get('/', async (c) => {
+    try {
+        const allUsers = await db.select().from(users)
+        return c.json(allUsers)
+    } catch (error) {
+        return c.json({ error: 'Failed to fetch users' }, 500)
+    }
 })
 
 // GET user by id
-usersApp.get('/:id', (c) => {
-    const id = parseInt(c.req.param('id'))
-    const user = users.find(u => u.id === id)
+usersApp.get('/:id', async (c) => {
+    try {
+        const id = parseInt(c.req.param('id'))
+        const result = await db.select().from(users).where(eq(users.id, id))
 
-    if (!user) {
-        return c.json({ error: 'User not found' }, 404)
+        if (result.length === 0) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        return c.json(result[0])
+    } catch (error) {
+        return c.json({ error: 'Failed to fetch user' }, 500)
     }
-
-    return c.json(user)
 })
 
 // POST create user
 usersApp.post('/', async (c) => {
-    const body = await c.req.json()
-    const { name, email } = body
+    try {
+        const body = await c.req.json()
+        const { name, email } = body
 
-    if (!name || !email) {
-        return c.json({ error: 'Name and email are required' }, 400)
+        if (!name || !email) {
+            return c.json({ error: 'Name and email are required' }, 400)
+        }
+
+        const newUser = await db.insert(users).values({ name, email }).returning()
+        return c.json(newUser[0], 201)
+    } catch (error: any) {
+        if (error.code === '23505') { // Unique constraint violation
+            return c.json({ error: 'Email already exists' }, 409)
+        }
+        return c.json({ error: 'Failed to create user' }, 500)
     }
-
-    const newUser: User = {
-        id: nextUserId++,
-        name,
-        email
-    }
-
-    users.push(newUser)
-    return c.json(newUser, 201)
 })
 
 // PUT update user
 usersApp.put('/:id', async (c) => {
-    const id = parseInt(c.req.param('id'))
-    const body = await c.req.json()
-    const { name, email } = body
+    try {
+        const id = parseInt(c.req.param('id'))
+        const body = await c.req.json()
+        const { name, email } = body
 
-    const userIndex = users.findIndex(u => u.id === id)
+        const updateData: Partial<InsertUser> = {}
+        if (name) updateData.name = name
+        if (email) updateData.email = email
 
-    if (userIndex === -1) {
-        return c.json({ error: 'User not found' }, 404)
+        if (Object.keys(updateData).length === 0) {
+            return c.json({ error: 'No fields to update' }, 400)
+        }
+
+        const result = await db
+            .update(users)
+            .set({ ...updateData, updatedAt: new Date() })
+            .where(eq(users.id, id))
+            .returning()
+
+        if (result.length === 0) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        return c.json(result[0])
+    } catch (error: any) {
+        if (error.code === '23505') { // Unique constraint violation
+            return c.json({ error: 'Email already exists' }, 409)
+        }
+        return c.json({ error: 'Failed to update user' }, 500)
     }
-
-    if (name) users[userIndex].name = name
-    if (email) users[userIndex].email = email
-
-    return c.json(users[userIndex])
 })
 
 // DELETE user
-usersApp.delete('/:id', (c) => {
-    const id = parseInt(c.req.param('id'))
-    const userIndex = users.findIndex(u => u.id === id)
+usersApp.delete('/:id', async (c) => {
+    try {
+        const id = parseInt(c.req.param('id'))
+        const result = await db.delete(users).where(eq(users.id, id)).returning()
 
-    if (userIndex === -1) {
-        return c.json({ error: 'User not found' }, 404)
+        if (result.length === 0) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        return c.json({ message: 'User deleted', user: result[0] })
+    } catch (error) {
+        return c.json({ error: 'Failed to delete user' }, 500)
     }
-
-    const deletedUser = users.splice(userIndex, 1)[0]
-    return c.json({ message: 'User deleted', user: deletedUser })
 })
 
 export default usersApp
