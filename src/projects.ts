@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import db from "./db/drizzle.js";
 import { type InsertProject, projects } from "./db/schema.js";
@@ -14,6 +15,20 @@ projectsRouter.post("/", async (c) => {
       return c.json(
         { error: "name, githubRepoUrl, and description are required" },
         400
+      );
+    }
+
+    // Check for duplicate GitHub URL
+    const existingProject = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.githubRepoUrl, githubRepoUrl))
+      .limit(1);
+
+    if (existingProject.length > 0) {
+      return c.json(
+        { error: "A project with this GitHub URL already exists" },
+        409
       );
     }
 
