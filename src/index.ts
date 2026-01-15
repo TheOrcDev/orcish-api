@@ -5,8 +5,6 @@ import usersApp from "./users.js";
 
 const app = new Hono();
 
-app.get("/", (c) => c.redirect("https://docs.orcish-api.com"));
-
 // Root route
 app.get("/api", (c) =>
   c.json({
@@ -23,5 +21,7 @@ app.get("/api", (c) =>
 app.route("/api/users", usersApp);
 app.route("/api/items", itemsApp);
 app.route("/api/projects", projectsApp);
+
+app.get("/", (c) => c.redirect("https://docs.orcish-api.com"));
 
 export default app;
